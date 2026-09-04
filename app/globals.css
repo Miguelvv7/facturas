@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-piedra-50 text-piedra-900 antialiased;
+  }
+
+  /* En iOS, un input de menos de 16px hace que Safari haga zoom al enfocarlo. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-oliva-600 ring-offset-2 ring-offset-piedra-50;
+  }
+}
+
+@layer components {
+  .campo {
+    @apply w-full rounded-xl border border-piedra-300 bg-white px-3.5 py-3 text-piedra-900
+           placeholder:text-piedra-400 focus:border-oliva-600 focus:outline-none
+           focus:ring-1 focus:ring-oliva-600 disabled:bg-piedra-100;
+  }
+
+  .etiqueta {
+    @apply mb-1.5 block text-sm font-medium text-piedra-700;
+  }
+
+  .tarjeta {
+    @apply rounded-2xl border border-piedra-200 bg-white shadow-suave;
+  }
+}
+
+/* Los importes se leen en columna: con cifras de ancho fijo cuadran. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Pantalla de entrada. El movimiento es lento y continuo a propósito: imita
+   aceite, no una interfaz. Nada aquí debe llamar la atención sobre sí mismo.
+   --------------------------------------------------------------------------- */
+
+@keyframes derivaAceite {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6%, -4%) scale(1.12); }
+  66%  { transform: translate(-4%, 5%) scale(0.94); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes entrarAbajo {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes trazar {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes brillo {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to   { transform: translateX(220%) skewX(-20deg); }
+}
+
+.mancha {
+  animation: derivaAceite 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.entra {
+  animation: entrarAbajo 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.traza {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  /* pathLength="1" en el SVG permite animar el trazo sin medir la ruta. */
+  animation: trazar 1.6s cubic-bezier(0.6, 0, 0.2, 1) 0.25s both;
+}
+
+/* El grano rompe la planitud del degradado: sin él parece un render. */
+.grano::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23r)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+.serif {
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+
+/* Subrayado verde que crece desde la izquierda al enfocar. */
+.campo-linea {
+  background-image: linear-gradient(#65783e, #65783e);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  transition: background-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.campo-linea:focus {
+  background-size: 100% 1.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mancha,
+  .entra,
+  .traza {
+    animation: none;
+  }
+  .traza {
+    stroke-dashoffset: 0;
+  }
+  .campo-linea {
+    transition: none;
+  }
+}

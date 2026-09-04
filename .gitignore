@@ -1,0 +1,21 @@
+node_modules/
+.next/
+dist/
+build/
+*.log
+.env.local
+.env
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+# Skills instaladas con claude-code-templates: herramientas locales, no la app.
+.claude/skills/
+
+# Artefactos de Next generados por el propio framework.
+AGENTS.md
+CLAUDE.md
+next-env.d.ts
+tsconfig.tsbuildinfo
