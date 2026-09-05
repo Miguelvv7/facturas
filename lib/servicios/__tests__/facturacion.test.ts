@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { repositorioLocal } from '../../data/repositorio-local'
 import { euros, aEuros } from '../../domain/dinero'
 import { verificarCadena } from '../../domain/fiscal/verifactu'
-import { anularConRectificativa, crearBorrador, emitirFactura, marcarCobrada } from '../facturacion'
+import {
+  anularConRectificativa,
+  crearBorrador,
+  crearClienteRapido,
+  emitirFactura,
+  marcarCobrada,
+} from '../facturacion'
 import { calcularResumen } from '../resumen'
 import { DatosNegocio, PERSONALIZACION_POR_DEFECTO } from '../../domain/tipos'
 
@@ -145,18 +151,58 @@ describe('flujo completo de facturación', () => {
     expect(await verificarCadena(cadena)).toBeNull()
   })
 
-  it('no deja emitir una factura completa sin NIF del cliente', async () => {
-    await repo.negocio.guardar(NEGOCIO)
-    const sinNif = await repo.clientes.crear({
-      nombre: 'Cliente de paso',
-      regimen: 'general',
-      pais: 'ES',
-      diasPago: 0,
-      creadoEn: new Date().toISOString(),
+  it('da de alta un cliente solo con el nombre y le emite ticket', async () => {
+    const { producto } = await prepararEscenario()
+
+    const particular = await crearClienteRapido(repo, '  María del pueblo  ')
+    expect(particular.nombre).toBe('María del pueblo')
+    expect(particular.nif).toBeUndefined()
+
+    const borrador = await crearBorrador(repo, {
+      clienteId: particular.id,
+      lineas: [
+        {
+          productoId: producto.id,
+          descripcion: producto.nombre,
+          cantidad: 2,
+          precioUnitario: producto.precioVenta,
+          tipoIva: 4,
+        },
+      ],
     })
 
+    // Sin NIF la ley obliga a ticket: lo decide la app, no el usuario.
+    expect(borrador.tipoFactura).toBe('F2')
+
+    const { factura } = await emitirFactura(repo, borrador.id)
+    expect(factura.estado).toBe('emitida')
+    expect(aEuros(factura.total)).toBe(80.08)
+    expect(factura.huella).toMatch(/^[0-9A-F]{64}$/)
+  })
+
+  it('emite factura completa si el cliente sí tiene NIF', async () => {
+    const { cliente, producto } = await prepararEscenario()
+    const b = await crearBorrador(repo, {
+      clienteId: cliente.id,
+      lineas: [
+        { productoId: producto.id, descripcion: 'x', cantidad: 1, precioUnitario: euros(10), tipoIva: 4 },
+      ],
+    })
+    expect(b.tipoFactura).toBe('F1')
+  })
+
+  it('rechaza el nombre vacío al crear cliente rápido', async () => {
+    await expect(crearClienteRapido(repo, '   ')).rejects.toThrow(/nombre/)
+  })
+
+  it('no deja forzar factura completa si el cliente no tiene NIF', async () => {
+    await repo.negocio.guardar(NEGOCIO)
+    const sinNif = await crearClienteRapido(repo, 'Cliente de paso')
+
+    // Sin pedirlo se emitiría como ticket; aquí se fuerza F1 a propósito.
     const b = await crearBorrador(repo, {
       clienteId: sinNif.id,
+      tipoFactura: 'F1',
       lineas: [{ descripcion: 'Aceite', cantidad: 1, precioUnitario: euros(10), tipoIva: 4 }],
     })
 

@@ -7,9 +7,11 @@ import { useDatos } from '@/lib/estado/datos'
 import { LineaFacturaGuardada } from '@/lib/domain/tipos'
 import { baseLinea, calcularTotales, RegimenCliente } from '@/lib/domain/fiscal/factura-calc'
 import { formatearEuros, parsearEuros } from '@/lib/domain/dinero'
-import { crearBorrador, emitirFactura } from '@/lib/servicios/facturacion'
+import { crearBorrador, crearClienteRapido, emitirFactura } from '@/lib/servicios/facturacion'
 import { hoy } from '@/lib/domain/fechas'
 import { Aviso, Boton, BotonVolver, Campo, Cargando, Modal, Selector, Tarjeta } from '@/components/ui'
+import { SelectorCliente } from '@/components/SelectorCliente'
+import { comprobarSimplificada, necesitaTicket } from '@/lib/domain/fiscal/factura-simplificada'
 import { BloqueTotales } from '@/components/factura'
 
 export default function NuevaVenta() {
@@ -34,6 +36,9 @@ export default function NuevaVenta() {
       }),
     [lineas, cliente]
   )
+
+  const esTicket = Boolean(cliente) && necesitaTicket(cliente?.nif)
+  const avisoTicket = comprobarSimplificada(totales.total)
 
   const anadirProducto = (productoId: string) => {
     const p = productos.find((x) => x.id === productoId)
@@ -106,28 +111,16 @@ export default function NuevaVenta() {
       )}
 
       <Tarjeta className="space-y-4 p-5">
-        {clientes.length === 0 ? (
-          <Aviso tono="info">
-            No tienes clientes.{' '}
-            <Link href="/clientes" className="font-semibold underline">
-              Añade el primero
-            </Link>
-            .
-          </Aviso>
-        ) : (
-          <Selector
-            etiqueta="¿A quién le vendes?"
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-          >
-            <option value="">Elige un cliente…</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </Selector>
-        )}
+        <SelectorCliente
+          clientes={clientes}
+          seleccionado={cliente ?? null}
+          onSeleccionar={(c) => setClienteId(c?.id ?? '')}
+          onCrear={async (nombre) => {
+            const nuevo = await crearClienteRapido(repo, nombre)
+            await recargar()
+            setClienteId(nuevo.id)
+          }}
+        />
 
         <Campo etiqueta="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
 
@@ -224,8 +217,14 @@ export default function NuevaVenta() {
       </div>
 
       {lineas.length > 0 && (
-        <div className="mt-5">
+        <div className="mt-5 space-y-3">
           <BloqueTotales importes={totales} />
+
+          {esTicket && avisoTicket.mensaje && (
+            <Aviso tono={avisoTicket.superaLimite ? 'error' : 'aviso'}>
+              {avisoTicket.mensaje}
+            </Aviso>
+          )}
         </div>
       )}
 
@@ -251,7 +250,9 @@ export default function NuevaVenta() {
           tamano="lg"
           className="w-full shadow-media"
         >
-          {emitiendo ? 'Emitiendo…' : `Emitir factura · ${formatearEuros(totales.total)}`}
+          {emitiendo
+            ? 'Emitiendo…'
+            : `${esTicket ? 'Emitir ticket' : 'Emitir factura'} · ${formatearEuros(totales.total)}`}
         </Boton>
         <p className="mt-2 text-center text-xs text-piedra-500">
           Una vez emitida no se puede modificar, solo rectificar.

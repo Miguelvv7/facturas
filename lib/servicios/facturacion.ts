@@ -12,6 +12,7 @@ import { Factura, LineaFacturaGuardada } from '../domain/tipos'
 import { calcularTotales, LineaFactura, RegimenCliente } from '../domain/fiscal/factura-calc'
 import { formatearEuros } from '../domain/dinero'
 import { calcularHuella, TipoFactura, urlCotejoQR } from '../domain/fiscal/verifactu'
+import { necesitaTicket } from '../domain/fiscal/factura-simplificada'
 import { aFormatoAEAT as fechaAEAT, ahoraConHuso, hoy, sumarDias } from '../domain/fechas'
 
 export const numeroCompleto = (serie: string, ejercicio: number, numero: number) =>
@@ -45,6 +46,9 @@ export async function crearBorrador(
   if (datos.lineas.length === 0) throw new Error('La factura no tiene líneas.')
 
   const fecha = datos.fecha ?? hoy()
+  // Sin NIF no cabe factura completa: se emite ticket (RD 1619/2012, art. 4).
+  const tipoFactura =
+    datos.tipoFactura ?? (necesitaTicket(cliente.nif) ? 'F2' : 'F1')
   const totales = calcularTotales(datos.lineas.map(aLineaCalculo), {
     regimenCliente: cliente.regimen as RegimenCliente,
     tipoRetencion: datos.tipoRetencion,
@@ -54,7 +58,7 @@ export async function crearBorrador(
     serie: datos.serie ?? 'A',
     numero: 0,
     numeroCompleto: 'BORRADOR',
-    tipoFactura: datos.tipoFactura ?? 'F1',
+    tipoFactura,
     clienteId: datos.clienteId,
     fecha,
     fechaVencimiento: sumarDias(fecha, cliente.diasPago),
@@ -66,6 +70,23 @@ export async function crearBorrador(
     huella: '',
     huellaAnterior: '',
     fechaHoraGeneracion: '',
+    creadoEn: new Date().toISOString(),
+  })
+}
+
+/**
+ * Da de alta un cliente con lo mínimo: el nombre. Para la venta al paso, en la
+ * que pedir NIF y domicilio no tiene sentido. Se le emitirá ticket.
+ */
+export async function crearClienteRapido(repo: Repositorio, nombre: string) {
+  const limpio = nombre.trim()
+  if (!limpio) throw new Error('Ponle un nombre al cliente.')
+
+  return repo.clientes.crear({
+    nombre: limpio,
+    regimen: 'general',
+    pais: 'ES',
+    diasPago: 0,
     creadoEn: new Date().toISOString(),
   })
 }
@@ -89,9 +110,9 @@ export async function emitirFactura(
   const cliente = await repo.clientes.obtener(borrador.clienteId)
   // Una factura completa (F1) necesita identificar al destinatario.
   // La simplificada (F2) no, y por eso tiene límite de importe.
-  if (borrador.tipoFactura === 'F1' && !cliente?.nif) {
+  if (borrador.tipoFactura === 'F1' && necesitaTicket(cliente?.nif)) {
     throw new Error(
-      'Una factura completa necesita el NIF del cliente. Añádelo o emite una factura simplificada.'
+      'Una factura completa necesita el NIF del cliente. Añádelo o emite un ticket.'
     )
   }
 

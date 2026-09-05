@@ -6,6 +6,7 @@ import { calcularModelo130, minoracionPorRendimiento } from '../modelo-130'
 import { validarNif, tipoIdentificador } from '../nif'
 import { calcularHuella, construirCadenaHuella, verificarCadena, RegistroFacturacion } from '../verifactu'
 import { trimestreDe, plazoPresentacion } from '../periodos'
+import { comprobarSimplificada, necesitaTicket } from '../factura-simplificada'
 import { Factura, Gasto } from '../../tipos'
 
 const linea = (over: Partial<LineaFactura> = {}): LineaFactura => ({
@@ -295,6 +296,31 @@ describe('verifactu', () => {
 
     cadena[0].importeTotal = euros(999)
     expect(await verificarCadena(cadena)).toBe(0)
+  })
+})
+
+describe('factura simplificada', () => {
+  it('sin NIF solo cabe ticket', () => {
+    expect(necesitaTicket(undefined)).toBe(true)
+    expect(necesitaTicket('   ')).toBe(true)
+    expect(necesitaTicket('12345678Z')).toBe(false)
+  })
+
+  it('no dice nada por debajo de 400 €', () => {
+    expect(comprobarSimplificada(euros(399.99)).mensaje).toBeNull()
+    expect(comprobarSimplificada(euros(400)).superaLimite).toBe(false)
+  })
+
+  it('avisa entre 400 y 3.000 € sin bloquear', () => {
+    const r = comprobarSimplificada(euros(1500))
+    expect(r.superaLimite).toBe(false)
+    expect(r.mensaje).toContain('400')
+  })
+
+  it('marca que hace falta factura completa por encima de 3.000 €', () => {
+    const r = comprobarSimplificada(euros(3000.01))
+    expect(r.superaLimite).toBe(true)
+    expect(r.mensaje).toContain('NIF')
   })
 })
 
