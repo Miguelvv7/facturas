@@ -232,7 +232,7 @@ export async function generarFacturaPDF({
   }
 
   if (factura.totalRetencion > 0) {
-    fila(`Retención IRPF ${factura.tipoRetencion}%`, `−${formatearEuros(factura.totalRetencion)}`, {
+    fila(`Retencion IRPF ${factura.tipoRetencion}%`, `-${formatearEuros(factura.totalRetencion)}`, {
       color: '#b45309',
     })
   }

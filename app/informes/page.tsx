@@ -14,6 +14,7 @@ import {
   ventasPorProducto,
 } from '@/lib/servicios/analisis'
 import { Cargando, EstadoVacio, Insignia, Tarjeta, clases } from '@/components/ui'
+import { DescargarResumen } from '@/components/DescargarResumen'
 import { CabeceraMovil } from '@/components/Navegacion'
 
 type Rango = 'mes' | 'trimestre' | 'anio'
@@ -73,7 +74,12 @@ export default function Informes() {
     <>
       <CabeceraMovil titulo="Informes" />
       <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-        <h1 className="mb-5 hidden text-2xl font-semibold md:block">Informes</h1>
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <h1 className="hidden text-2xl font-semibold md:block">Informes</h1>
+          <div className="ml-auto w-full sm:w-auto">
+            <DescargarResumen />
+          </div>
+        </div>
 
         {sinDatos ? (
           <EstadoVacio
