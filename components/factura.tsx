@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { DesgloseIva } from '@/lib/domain/fiscal/factura-calc'
 import { Centimos, formatearEuros } from '@/lib/domain/dinero'
-import { formatearFecha } from '@/lib/domain/fechas'
+import { diasEntre, formatearFecha, hoy } from '@/lib/domain/fechas'
 import { Factura } from '@/lib/domain/tipos'
 import { estaVencida } from '@/lib/servicios/resumen'
 import { Insignia, Tarjeta } from './ui'
@@ -28,6 +28,8 @@ export function FilaFactura({
   nombreCliente: string
   mostrarFecha?: boolean
 }) {
+  const vencida = estaVencida(factura)
+
   return (
     <Link
       href={`/facturas/${factura.id}`}
@@ -38,6 +40,12 @@ export function FilaFactura({
         <p className="text-sm text-piedra-500">
           {factura.numeroCompleto}
           {mostrarFecha && ` · ${formatearFecha(factura.fecha, 'diaMes')}`}
+          {vencida && (
+            <span className="text-error">
+              {' · '}
+              {diasEntre(factura.fechaVencimiento, hoy())} días de retraso
+            </span>
+          )}
         </p>
       </div>
       <div className="ml-4 flex shrink-0 items-center gap-3">

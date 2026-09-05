@@ -13,6 +13,11 @@ import { errorNif } from '@/lib/domain/fiscal/nif'
 import { euros, aEuros } from '@/lib/domain/dinero'
 import { prepararLogo } from '@/lib/servicios/imagen'
 import { cargarDatosEjemplo } from '@/lib/servicios/datos-ejemplo'
+import {
+  exportarCopiaSeguridad,
+  exportarFacturasCsv,
+  exportarGastosCsv,
+} from '@/lib/servicios/exportar'
 import { facturaDeMuestra } from '@/lib/servicios/muestra'
 import { Aviso, Boton, Campo, Cargando, Selector, Tarjeta, clases } from '@/components/ui'
 import { CabeceraMovil } from '@/components/Navegacion'
@@ -54,7 +59,7 @@ const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
 ]
 
 export default function Ajustes() {
-  const { negocio, repo, recargar, cargando } = useDatos()
+  const { negocio, clientes, productos, facturas, gastos, repo, recargar, cargando } = useDatos()
   const { email, salir } = useSesion()
   const [pestana, setPestana] = useState<Pestana>('datos')
   const [form, setForm] = useState<DatosNegocio>(VACIO)
@@ -556,6 +561,55 @@ export default function Ajustes() {
                 </Boton>
               </Tarjeta>
             )}
+
+            <Tarjeta className="space-y-4 p-5">
+              <div>
+                <h2 className="font-semibold">Guardar una copia</h2>
+                <p className="mt-1 text-sm text-piedra-500">
+                  Descarga todo lo tuyo en un archivo. Guárdalo de vez en cuando: si algún día
+                  pasa algo, ahí está todo.
+                </p>
+              </div>
+
+              <Boton
+                type="button"
+                variante="secundario"
+                onClick={() =>
+                  exportarCopiaSeguridad({ negocio, clientes, productos, facturas, gastos })
+                }
+              >
+                Descargar copia de seguridad
+              </Boton>
+            </Tarjeta>
+
+            <Tarjeta className="space-y-4 p-5">
+              <div>
+                <h2 className="font-semibold">Llevar las cuentas a Excel</h2>
+                <p className="mt-1 text-sm text-piedra-500">
+                  Si un gestor o Hacienda te piden los libros de facturas, esto es lo que hay que
+                  darles. Se abre en Excel directamente.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Boton
+                  type="button"
+                  variante="secundario"
+                  disabled={facturas.length === 0}
+                  onClick={() => exportarFacturasCsv(facturas, clientes)}
+                >
+                  Facturas emitidas
+                </Boton>
+                <Boton
+                  type="button"
+                  variante="secundario"
+                  disabled={gastos.length === 0}
+                  onClick={() => exportarGastosCsv(gastos)}
+                >
+                  Gastos
+                </Boton>
+              </div>
+            </Tarjeta>
 
             <Tarjeta className="space-y-4 p-5">
               <div>

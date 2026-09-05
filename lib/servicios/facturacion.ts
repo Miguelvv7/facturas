@@ -91,6 +91,35 @@ export async function crearClienteRapido(repo: Repositorio, nombre: string) {
   })
 }
 
+/**
+ * Líneas de una factura anterior, listas para volver a venderlas. Se refrescan
+ * los precios: si un producto ha subido, el pedido repetido va al precio de
+ * hoy, no al del año pasado.
+ */
+export async function lineasParaRepetir(
+  repo: Repositorio,
+  facturaId: string
+): Promise<{ clienteId: string; lineas: LineaFacturaGuardada[] } | null> {
+  const original = await repo.facturas.obtener(facturaId)
+  if (!original) return null
+
+  const lineas: LineaFacturaGuardada[] = []
+  for (const linea of original.lineas) {
+    const producto = linea.productoId ? await repo.productos.obtener(linea.productoId) : null
+    lineas.push({
+      ...linea,
+      // Un concepto libre conserva su importe; un producto toma el actual.
+      precioUnitario: producto?.precioVenta ?? linea.precioUnitario,
+      tipoIva: producto?.tipoIva ?? linea.tipoIva,
+      // El lote de aquella venta ya no vale para ésta.
+      loteId: undefined,
+      cantidad: Math.abs(linea.cantidad),
+    })
+  }
+
+  return { clienteId: original.clienteId, lineas }
+}
+
 export interface FacturaEmitida {
   factura: Factura
   urlQR: string

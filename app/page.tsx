@@ -71,14 +71,18 @@ export default function Inicio() {
       </Link>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <Tarjeta className="p-5">
-          <p className="text-sm text-piedra-500">Vendido este mes</p>
-          <p className="tabular mt-1.5 text-2xl font-semibold">
-            {formatearEuros(resumen.vendidoMes)}
-          </p>
-        </Tarjeta>
+        <Link href="/informes" className="block">
+          <Tarjeta className="h-full p-5 transition-colors hover:border-piedra-300">
+            <p className="text-sm text-piedra-500">Vendido este mes</p>
+            <p className="tabular mt-1.5 text-2xl font-semibold">
+              {formatearEuros(resumen.vendidoMes)}
+            </p>
+            <p className="mt-1 text-sm text-oliva-700">Ver informes</p>
+          </Tarjeta>
+        </Link>
 
-        <Tarjeta className="p-5">
+        <Link href="/facturas" className="block">
+        <Tarjeta className="h-full p-5 transition-colors hover:border-piedra-300">
           <p className="text-sm text-piedra-500">Te deben</p>
           <p className="tabular mt-1.5 text-2xl font-semibold">
             {formatearEuros(resumen.pendienteCobro)}
@@ -95,6 +99,7 @@ export default function Inicio() {
             )}
           </p>
         </Tarjeta>
+        </Link>
 
         <Tarjeta className="border-oliva-200 bg-oliva-50 p-5">
           <p className="text-sm text-oliva-800">Aparta para Hacienda</p>

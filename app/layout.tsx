@@ -6,14 +6,21 @@ import { BarraInferior, BarraLateral } from '@/components/Navegacion'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Aceites · Ventas y facturas',
-  description: 'Control de ventas y facturación para venta de aceites',
+  title: 'Facturas',
+  description: 'Control de ventas y facturación para autónomos',
+  manifest: '/manifest.webmanifest',
+  // Sin esto iOS abre la app en Safari en vez de a pantalla completa.
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Facturas' },
+  icons: { icon: '/icono-192.png', apple: '/apple-icon.png' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#65783e',
+  themeColor: '#20281a',
   width: 'device-width',
   initialScale: 1,
+  // Evita el zoom accidental al tocar dos veces, que en un formulario molesta.
+  maximumScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

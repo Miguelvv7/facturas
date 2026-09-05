@@ -7,8 +7,9 @@ import { formatearEuros } from '@/lib/domain/dinero'
 import { formatearFecha } from '@/lib/domain/fechas'
 import { baseLinea } from '@/lib/domain/fiscal/factura-calc'
 import { descargarFacturaPDF } from '@/lib/pdf/factura-pdf'
+import { compartirFactura, enlaceCorreo, enlaceWhatsApp } from '@/lib/servicios/compartir'
 import { anularConRectificativa, marcarCobrada } from '@/lib/servicios/facturacion'
-import { Aviso, Boton, BotonVolver, Cargando, Tarjeta } from '@/components/ui'
+import { Aviso, Boton, BotonVolver, Cargando, Insignia, Tarjeta } from '@/components/ui'
 import { BloqueTotales, InsigniaEstado } from '@/components/factura'
 
 export default function DetalleFactura({ params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +18,8 @@ export default function DetalleFactura({ params }: { params: Promise<{ id: strin
   const { facturas, clientes, negocio, repo, recargar, cargando } = useDatos()
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  // Tras descargar (o si el móvil no sabe compartir), se ofrece el envío manual.
+  const [mostrarEnvio, setMostrarEnvio] = useState(false)
 
   const factura = facturas.find((f) => f.id === id)
   const cliente = clientes.find((c) => c.id === factura?.clienteId)
@@ -33,6 +36,22 @@ export default function DetalleFactura({ params }: { params: Promise<{ id: strin
       await descargarFacturaPDF({ factura, cliente, negocio })
     } catch {
       setError('No se ha podido generar el PDF.')
+    }
+    setOcupado(false)
+  }
+
+  const enviar = async () => {
+    if (!cliente || !negocio) {
+      return setError('Faltan los datos del cliente o del negocio.')
+    }
+    setOcupado(true)
+    try {
+      const resultado = await compartirFactura({ factura, cliente, negocio })
+      // Si el sistema no pudo compartir, el PDF ya está descargado y solo
+      // falta que elija por dónde mandarlo.
+      if (resultado === 'descargado') setMostrarEnvio(true)
+    } catch {
+      setError('No se ha podido preparar el envío.')
     }
     setOcupado(false)
   }
@@ -69,7 +88,8 @@ export default function DetalleFactura({ params }: { params: Promise<{ id: strin
         <h1 className="min-w-0 truncate text-xl font-semibold md:text-2xl">
           {factura.numeroCompleto}
         </h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {factura.tipoFactura === 'F2' && <Insignia tono="neutro">Ticket</Insignia>}
           <InsigniaEstado factura={factura} />
         </div>
       </div>
@@ -131,9 +151,48 @@ export default function DetalleFactura({ params }: { params: Promise<{ id: strin
       </div>
 
       <div className="mt-6 space-y-3">
-        <Boton onClick={descargar} disabled={ocupado} tamano="lg" className="w-full">
-          Descargar PDF
+        <Boton onClick={enviar} disabled={ocupado} tamano="lg" className="w-full">
+          Enviar al cliente
         </Boton>
+
+        {(mostrarEnvio || !cliente?.telefono) && cliente && negocio && (
+          <div className="flex gap-3">
+            <a
+              href={enlaceWhatsApp({ factura, cliente, negocio })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+            >
+              <Boton type="button" variante="secundario" className="w-full">
+                WhatsApp
+              </Boton>
+            </a>
+            <a href={enlaceCorreo({ factura, cliente, negocio })} className="flex-1">
+              <Boton type="button" variante="secundario" className="w-full">
+                Correo
+              </Boton>
+            </a>
+          </div>
+        )}
+
+        {mostrarEnvio && (
+          <p className="text-center text-sm text-piedra-500">
+            El PDF está descargado. Adjúntalo al abrir WhatsApp o el correo.
+          </p>
+        )}
+
+        <div className="flex gap-3">
+          <Boton onClick={descargar} disabled={ocupado} variante="secundario" className="flex-1">
+            Descargar
+          </Boton>
+          <Boton
+            onClick={() => router.push(`/facturas/nueva?repetir=${factura.id}`)}
+            variante="secundario"
+            className="flex-1"
+          >
+            Repetir pedido
+          </Boton>
+        </div>
 
         {(factura.estado === 'emitida' || factura.estado === 'vencida') && (
           <Boton onClick={cobrar} disabled={ocupado} variante="secundario" className="w-full">

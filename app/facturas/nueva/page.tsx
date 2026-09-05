@@ -1,13 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useDatos } from '@/lib/estado/datos'
 import { LineaFacturaGuardada } from '@/lib/domain/tipos'
 import { baseLinea, calcularTotales, RegimenCliente } from '@/lib/domain/fiscal/factura-calc'
 import { formatearEuros, parsearEuros } from '@/lib/domain/dinero'
-import { crearBorrador, crearClienteRapido, emitirFactura } from '@/lib/servicios/facturacion'
+import {
+  crearBorrador,
+  crearClienteRapido,
+  emitirFactura,
+  lineasParaRepetir,
+} from '@/lib/servicios/facturacion'
 import { hoy } from '@/lib/domain/fechas'
 import { Aviso, Boton, BotonVolver, Campo, Cargando, Modal, Selector, Tarjeta } from '@/components/ui'
 import { SelectorCliente } from '@/components/SelectorCliente'
@@ -15,8 +20,19 @@ import { comprobarSimplificada, necesitaTicket } from '@/lib/domain/fiscal/factu
 import { BloqueTotales } from '@/components/factura'
 
 export default function NuevaVenta() {
+  return (
+    <Suspense fallback={<Cargando />}>
+      <Formulario />
+    </Suspense>
+  )
+}
+
+function Formulario() {
   const router = useRouter()
+  const parametros = useSearchParams()
+  const repetirDe = parametros.get('repetir')
   const { clientes, productos, negocio, repo, recargar, cargando } = useDatos()
+  const [precargando, setPrecargando] = useState(Boolean(repetirDe))
 
   const [clienteId, setClienteId] = useState('')
   const [fecha, setFecha] = useState(hoy())
@@ -36,6 +52,26 @@ export default function NuevaVenta() {
       }),
     [lineas, cliente]
   )
+
+  // Al llegar desde "repetir pedido", se rellena la venta con la anterior.
+  useEffect(() => {
+    if (!repetirDe) return
+    let cancelado = false
+
+    void lineasParaRepetir(repo, repetirDe).then((previo) => {
+      if (cancelado || !previo) {
+        setPrecargando(false)
+        return
+      }
+      setClienteId(previo.clienteId)
+      setLineas(previo.lineas)
+      setPrecargando(false)
+    })
+
+    return () => {
+      cancelado = true
+    }
+  }, [repetirDe, repo])
 
   const esTicket = Boolean(cliente) && necesitaTicket(cliente?.nif)
   const avisoTicket = comprobarSimplificada(totales.total)
@@ -89,13 +125,15 @@ export default function NuevaVenta() {
     }
   }
 
-  if (cargando) return <Cargando />
+  if (cargando || precargando) return <Cargando />
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-8 md:py-10">
       <div className="mb-5 flex items-center gap-3">
         <BotonVolver onClick={() => router.back()} />
-        <h1 className="text-xl font-semibold md:text-2xl">Nueva venta</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">
+          {repetirDe ? 'Repetir pedido' : 'Nueva venta'}
+        </h1>
       </div>
 
       {!negocio && (
